@@ -248,6 +248,21 @@ def load_leaderboard():
     return df
 
 
+def highlight_standings(row):
+    rank = row.name + 1
+
+    color = ""
+
+    if rank <= 4:
+        color = "background-color: rgba(66, 133, 244, 0.2)"
+    elif rank == 5:
+        color = "background-color: rgba(255, 165, 0, 0.2)"
+    elif rank >= 18:
+        color = "background-color: rgba(255, 77, 77, 0.2)"
+
+    return [color] * len(row)
+
+
 def show_main_page():
     st.title("⚽ Premier League Manager")
 
@@ -258,36 +273,54 @@ def show_main_page():
     with tab1:
         st.info("💡 Hint: Bấm vào tên đội bóng để xem lịch sử đấu.")
 
+        st.markdown(
+            """
+        <div style="display: flex; gap: 15px; margin-bottom: 10px; font-size: 0.9em;">
+            <span style="color: #4285F4; font-weight: bold;">■ Top 4: Champions League</span>
+            <span style="color: #FFA500; font-weight: bold;">■ Top 5: Europa League</span>
+            <span style="color: #FF4D4D; font-weight: bold;">■ Top 18-20: Xuống hạng</span>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+
         df = load_leaderboard()
+        df = df.reset_index(drop=True)
+        df.insert(0, "Hạng", df.index + 1)
         df["Team_URL"] = df["Team"].apply(lambda x: f"/?team={x}")
 
+        styler = df.style.apply(highlight_standings, axis=1)
+
         st.dataframe(
-            df,
+            styler,
             column_config={
                 "Team": None,
+                "Hạng": st.column_config.NumberColumn(
+                    "Thứ hạng", format="%d", width="small"
+                ),
                 "Team_URL": st.column_config.LinkColumn(
                     "Đội bóng",
                     display_text="team=(.*)",
                     width="medium",
                 ),
                 "Form": st.column_config.TextColumn(
-                    "Phong độ (5 trận gần nhất)",
+                    "Phong độ",
                     width="medium",
                     help="🟢 Thắng | ⚪ Hòa | 🔴 Thua",
                 ),
-                # ----------------------------------
-                "GP": st.column_config.NumberColumn("Số trận", format="%d"),
+                "GP": st.column_config.NumberColumn("Trận", format="%d"),
                 "W": st.column_config.NumberColumn("Thắng", format="%d"),
                 "D": st.column_config.NumberColumn("Hòa", format="%d"),
-                "L": st.column_config.NumberColumn("Thua", format="%d"),
-                "G": st.column_config.NumberColumn("Bàn thắng", format="%d"),
-                "GC": st.column_config.NumberColumn("Bàn bại", format="%d"),
+                "L": st.column_config.NumberColumn("Bại", format="%d"),
+                "G": st.column_config.NumberColumn("BT", format="%d"),
+                "GC": st.column_config.NumberColumn("BB", format="%d"),
                 "Pts": st.column_config.ProgressColumn(
                     "Điểm", format="%d", min_value=0, max_value=114
                 ),
-                "Dif": st.column_config.NumberColumn("Hệ số", format="%+d"),
+                "Dif": st.column_config.NumberColumn("+/-", format="%+d"),
             },
             column_order=[
+                "Hạng",
                 "Team_URL",
                 "GP",
                 "W",
@@ -301,10 +334,11 @@ def show_main_page():
             ],
             use_container_width=True,
             hide_index=True,
-            height=600,
+            height=800,
         )
 
     with tab2:
+        # (Giữ nguyên code cũ của tab 2)
         st.header("Nhập kết quả thi đấu")
         selected_round = st.number_input(
             "Chọn Vòng Đấu (1-38)", min_value=1, max_value=38, value=1
@@ -348,6 +382,7 @@ def show_main_page():
             st.warning("Không tìm thấy dữ liệu.")
 
     with tab3:
+        # (Giữ nguyên code cũ của tab 3)
         st.header("Toàn bộ kết quả & Lịch thi đấu")
         full_schedule = get_full_schedule_view()
 
