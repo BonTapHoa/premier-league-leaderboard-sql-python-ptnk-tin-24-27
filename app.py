@@ -201,6 +201,53 @@ def show_team_page(team_name):
     )
 
 
+def get_recent_form(team_name):
+    conn = get_connection()
+    query = """
+        SELECT Home, Homescore, Awayscore, Away
+        FROM Schedule
+        WHERE (Home = ? OR Away = ?) AND Homescore IS NOT NULL
+        ORDER BY Game DESC
+        LIMIT 5
+    """
+    df = pd.read_sql(query, conn, params=(team_name, team_name))
+    conn.close()
+
+    results = []
+    # Duyệt qua các trận đấu
+    for _, row in df.iterrows():
+        h_score = row["Homescore"]
+        a_score = row["Awayscore"]
+
+        if row["Home"] == team_name:
+            if h_score > a_score:
+                results.append("🟢")
+            elif h_score == a_score:
+                results.append("⚪")
+            else:
+                results.append("🔴")
+        else:  # Đội hiện tại là khách
+            if a_score > h_score:
+                results.append("🟢")
+            elif a_score == h_score:
+                results.append("⚪")
+            else:
+                results.append("🔴")
+
+    return " ".join(results[::-1])
+
+
+def load_leaderboard():
+    conn = get_connection()
+    df = pd.read_sql(
+        "SELECT * FROM LeaderBoard ORDER BY Pts DESC, Dif DESC, G DESC", conn
+    )
+    conn.close()
+    df["Form"] = df["Team"].apply(get_recent_form)
+
+    return df
+
+
 def show_main_page():
     st.title("⚽ Premier League Manager")
 
@@ -209,7 +256,7 @@ def show_main_page():
     )
 
     with tab1:
-        st.info("💡 Mẹo: Bấm vào tên đội bóng để xem lịch sử đấu.")
+        st.info("💡 Hint: Bấm vào tên đội bóng để xem lịch sử đấu.")
 
         df = load_leaderboard()
         df["Team_URL"] = df["Team"].apply(lambda x: f"/?team={x}")
@@ -223,10 +270,22 @@ def show_main_page():
                     display_text="team=(.*)",
                     width="medium",
                 ),
+                "Form": st.column_config.TextColumn(
+                    "Phong độ (5 trận gần nhất)",
+                    width="medium",
+                    help="🟢 Thắng | ⚪ Hòa | 🔴 Thua",
+                ),
+                # ----------------------------------
+                "GP": st.column_config.NumberColumn("Số trận", format="%d"),
+                "W": st.column_config.NumberColumn("Thắng", format="%d"),
+                "D": st.column_config.NumberColumn("Hòa", format="%d"),
+                "L": st.column_config.NumberColumn("Thua", format="%d"),
+                "G": st.column_config.NumberColumn("Bàn thắng", format="%d"),
+                "GC": st.column_config.NumberColumn("Bàn bại", format="%d"),
                 "Pts": st.column_config.ProgressColumn(
                     "Điểm", format="%d", min_value=0, max_value=114
                 ),
-                "Dif": st.column_config.NumberColumn("Hiệu số", format="%+d"),
+                "Dif": st.column_config.NumberColumn("Hệ số", format="%+d"),
             },
             column_order=[
                 "Team_URL",
@@ -238,10 +297,11 @@ def show_main_page():
                 "GC",
                 "Dif",
                 "Pts",
+                "Form",
             ],
             use_container_width=True,
             hide_index=True,
-            height=800,
+            height=600,
         )
 
     with tab2:

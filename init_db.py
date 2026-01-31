@@ -14,12 +14,10 @@ def init_database():
                 "LỖI: Hãy tắt App Streamlit hoặc các phần mềm đang mở file database trước khi chạy lại!"
             )
             return
-    # ---------------------------------------------------------------
 
     conn = sqlite3.connect(db_name)
     cursor = conn.cursor()
 
-    # Schema Script
     schema_script = """
     DROP TABLE IF EXISTS Schedule;
     DROP TABLE IF EXISTS LeaderBoard;
