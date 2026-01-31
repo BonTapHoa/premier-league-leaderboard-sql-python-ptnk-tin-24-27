@@ -127,6 +127,35 @@ def style_history_dataframe(df, target_team):
     return pd.DataFrame(processed_rows)
 
 
+def get_full_schedule_view():
+    conn = get_connection()
+    query = (
+        "SELECT Game, Home, Homescore, Awayscore, Away FROM Schedule ORDER BY Game DESC"
+    )
+    df = pd.read_sql(query, conn)
+    conn.close()
+
+    played_matches = df[df["Homescore"].notna()]
+
+    if not played_matches.empty:
+        current_round = played_matches["Game"].max()
+    else:
+        current_round = 0
+
+    view_limit = current_round + 1
+
+    final_df = df[df["Game"] <= view_limit].copy()
+
+    def format_score(row):
+        if pd.isna(row["Homescore"]):
+            return "Sắp đá"
+        return f"{int(row['Homescore'])} - {int(row['Awayscore'])}"
+
+    final_df["Tỉ số"] = final_df.apply(format_score, axis=1)
+
+    return final_df[["Game", "Home", "Tỉ số", "Away"]]
+
+
 def show_team_page(team_name):
     if st.button("⬅️ Quay lại Bảng Xếp Hạng"):
         st.query_params.clear()
@@ -175,34 +204,45 @@ def show_team_page(team_name):
 def show_main_page():
     st.title("⚽ Premier League Manager")
 
-    tab1, tab2 = st.tabs(["🏆 Bảng Xếp Hạng", "📝 Cập Nhật Tỉ Số"])
+    tab1, tab2, tab3 = st.tabs(
+        ["🏆 Bảng Xếp Hạng", "📝 Cập Nhật Tỉ Số", "📅 Lịch Thi Đấu & Kết Quả"]
+    )
 
     with tab1:
-        st.info("💡 Mẹo: Bấm vào hàng của một đội để xem lịch sử đấu chi tiết.")
+        st.info("💡 Mẹo: Bấm vào tên đội bóng để xem lịch sử đấu.")
 
         df = load_leaderboard()
-        event = st.dataframe(
+        df["Team_URL"] = df["Team"].apply(lambda x: f"/?team={x}")
+
+        st.dataframe(
             df,
             column_config={
-                "Logo": st.column_config.ImageColumn("Logo", width="small"),
+                "Team": None,
+                "Team_URL": st.column_config.LinkColumn(
+                    "Đội bóng",
+                    display_text="team=(.*)",
+                    width="medium",
+                ),
                 "Pts": st.column_config.ProgressColumn(
                     "Điểm", format="%d", min_value=0, max_value=114
                 ),
                 "Dif": st.column_config.NumberColumn("Hiệu số", format="%+d"),
             },
+            column_order=[
+                "Team_URL",
+                "GP",
+                "W",
+                "D",
+                "L",
+                "G",
+                "GC",
+                "Dif",
+                "Pts",
+            ],
             use_container_width=True,
             hide_index=True,
             height=800,
-            on_select="rerun",
-            selection_mode="single-row",
         )
-
-        if len(event.selection.rows) > 0:
-            selected_row_index = event.selection.rows[0]
-            selected_team = df.iloc[selected_row_index]["Team"]
-
-            st.query_params["team"] = selected_team
-            st.rerun()
 
     with tab2:
         st.header("Nhập kết quả thi đấu")
@@ -246,6 +286,42 @@ def show_main_page():
                     st.error(msg)
         else:
             st.warning("Không tìm thấy dữ liệu.")
+
+    with tab3:
+        st.header("Toàn bộ kết quả & Lịch thi đấu")
+        full_schedule = get_full_schedule_view()
+
+        full_schedule["Home_URL"] = full_schedule["Home"].apply(lambda x: f"/?team={x}")
+        full_schedule["Away_URL"] = full_schedule["Away"].apply(lambda x: f"/?team={x}")
+
+        def highlight_upcoming(row):
+            if row["Tỉ số"] == "Sắp đá":
+                return ["background-color: rgba(255, 255, 0, 0.1)"] * len(row)
+            return [""] * len(row)
+
+        st.dataframe(
+            full_schedule.style.apply(highlight_upcoming, axis=1),
+            column_config={
+                "Game": st.column_config.NumberColumn("Vòng", width="small"),
+                "Home": None,
+                "Away": None,
+                "Home_URL": st.column_config.LinkColumn(
+                    "Chủ nhà",
+                    display_text="team=(.*)",
+                    width="medium",
+                ),
+                "Tỉ số": st.column_config.TextColumn("Kết quả", width="small"),
+                "Away_URL": st.column_config.LinkColumn(
+                    "Khách",
+                    display_text="team=(.*)",
+                    width="medium",
+                ),
+            },
+            column_order=["Game", "Home_URL", "Tỉ số", "Away_URL"],
+            use_container_width=True,
+            hide_index=True,
+            height=800,
+        )
 
 
 query_params = st.query_params
