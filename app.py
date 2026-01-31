@@ -25,13 +25,7 @@ def load_leaderboard():
         "SELECT * FROM LeaderBoard ORDER BY Pts DESC, Dif DESC, G DESC", conn
     )
     conn.close()
-    # Thêm cột Logo
-    df["Logo"] = df["Team"].apply(
-        lambda x: (
-            f"{ASSETS_DIR}/{x}.png" if os.path.exists(f"{ASSETS_DIR}/{x}.png") else None
-        )
-    )
-    return df[["Logo"] + [c for c in df.columns if c != "Logo"]]
+    return df
 
 
 def get_matches_by_round(game_round):
@@ -99,7 +93,6 @@ def style_history_dataframe(df, target_team):
         result_icon = "📅"
         result_text = "Sắp đá"
         score_display = "- : -"
-        bg_color = ""
 
         if pd.notna(h_score):
             score_display = f"{int(h_score)} - {int(a_score)}"
@@ -107,23 +100,17 @@ def style_history_dataframe(df, target_team):
             if home == target_team:
                 if h_score > a_score:
                     result_icon = "✅ WIN"
-                    bg_color = "rgba(144, 238, 144, 0.3)"
                 elif h_score == a_score:
                     result_icon = "⚪ DRAW"
-                    bg_color = "rgba(211, 211, 211, 0.3)"
                 else:
                     result_icon = "❌ LOSS"
-                    bg_color = "rgba(255, 182, 193, 0.3)"
             else:
                 if a_score > h_score:
                     result_icon = "✅ WIN"
-                    bg_color = "rgba(144, 238, 144, 0.3)"
                 elif a_score == h_score:
                     result_icon = "⚪ DRAW"
-                    bg_color = "rgba(211, 211, 211, 0.3)"
                 else:
                     result_icon = "❌ LOSS"
-                    bg_color = "rgba(255, 182, 193, 0.3)"
 
             result_text = result_icon
 
@@ -134,7 +121,6 @@ def style_history_dataframe(df, target_team):
                 "Sân": venue,
                 "Tỉ số": score_display,
                 "Kết quả": result_text,
-                "_bg_color": bg_color,
             }
         )
 
@@ -158,16 +144,21 @@ def show_team_page(team_name):
     raw_df = get_team_history_data(team_name)
     display_df = style_history_dataframe(raw_df, team_name)
 
-    def color_row(row):
-        color = row["_bg_color"]
+    def highlight_rows(row):
+        result = row["Kết quả"]
+
+        color = "transparent"
+
+        if "WIN" in result:
+            color = "rgba(144, 238, 144, 0.3)"
+        elif "DRAW" in result:
+            color = "rgba(211, 211, 211, 0.3)"
+        elif "LOSS" in result:
+            color = "rgba(255, 182, 193, 0.3)"
+
         return [f"background-color: {color}"] * len(row)
 
-    styler = display_df.style.apply(color_row, axis=1)
-
-    try:
-        styler.hide(axis="columns", subset=["_bg_color"])
-    except AttributeError:
-        styler.hide_columns(["_bg_color"])
+    styler = display_df.style.apply(highlight_rows, axis=1)
 
     st.dataframe(
         styler,
