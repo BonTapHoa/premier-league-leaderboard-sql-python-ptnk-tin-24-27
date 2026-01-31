@@ -6,7 +6,6 @@ def init_database():
     conn = sqlite3.connect(db_name)
     cursor = conn.cursor()
 
-    # 1. Tạo cấu trúc bảng và Triggers (Giữ nguyên logic cũ)
     schema_script = """
     DROP TABLE IF EXISTS Schedule;
     DROP TABLE IF EXISTS LeaderBoard;
@@ -29,18 +28,15 @@ def init_database():
         FOREIGN KEY(Away) REFERENCES LeaderBoard(Team)
     );
 
-    -- Nạp danh sách đội bóng
     INSERT INTO LeaderBoard (Team) VALUES
     ('Arsenal'), ('Man City'), ('Aston Villa'), ('Liverpool'), ('Brentford'), ('Newcastle'), ('Man Utd'), ('Chelsea'),
     ('Fulham'), ('Sunderland'), ('Brighton'), ('Everton'), ('Crystal Palace'), ('Tottenham'), ('Bournemouth'), ('Leeds'),
     ('Nottm Forest'), ('West Ham'), ('Burnley'), ('Wolves');
 
-    -- Trigger Update: Tự động tính điểm khi cập nhật tỉ số
     CREATE TRIGGER trg_MatchUpdate
     AFTER UPDATE ON Schedule
     WHEN (OLD.Homescore IS NOT NULL OR NEW.Homescore IS NOT NULL)
     BEGIN
-        -- Trừ điểm cũ (nếu có)
         UPDATE LeaderBoard SET 
             GP=GP-1, G=G-OLD.Homescore, GC=GC-OLD.Awayscore,
             W=W-(CASE WHEN OLD.Homescore>OLD.Awayscore THEN 1 ELSE 0 END),
@@ -55,7 +51,6 @@ def init_database():
             L=L-(CASE WHEN OLD.Awayscore<OLD.Homescore THEN 1 ELSE 0 END)
         WHERE Team=OLD.Away AND OLD.Awayscore IS NOT NULL;
 
-        -- Cộng điểm mới (nếu có nhập tỉ số)
         UPDATE LeaderBoard SET 
             GP=GP+1, G=G+NEW.Homescore, GC=GC+NEW.Awayscore,
             W=W+(CASE WHEN NEW.Homescore>NEW.Awayscore THEN 1 ELSE 0 END),
@@ -73,8 +68,6 @@ def init_database():
     """
     cursor.executescript(schema_script)
 
-    # 2. Nạp Lịch Thi Đấu (Dữ liệu bạn cung cấp)
-    # Lưu ý: Tôi dùng executemany để code gọn hơn, thay vì paste 1000 dòng INSERT
     schedule_data = """
     (1, 'Arsenal', 'Wolves'), (1, 'Man City', 'Burnley'), (1, 'Aston Villa', 'West Ham'), (1, 'Liverpool', 'Nottm Forest'), (1, 'Brentford', 'Leeds'), (1, 'Newcastle', 'Bournemouth'), (1, 'Man Utd', 'Tottenham'), (1, 'Chelsea', 'Crystal Palace'), (1, 'Fulham', 'Everton'), (1, 'Sunderland', 'Brighton'),
     (2, 'Arsenal', 'Burnley'), (2, 'Wolves', 'West Ham'), (2, 'Man City', 'Nottm Forest'), (2, 'Aston Villa', 'Leeds'), (2, 'Liverpool', 'Bournemouth'), (2, 'Brentford', 'Tottenham'), (2, 'Newcastle', 'Crystal Palace'), (2, 'Man Utd', 'Everton'), (2, 'Chelsea', 'Brighton'), (2, 'Fulham', 'Sunderland'),
@@ -116,19 +109,16 @@ def init_database():
     (38, 'Man City', 'Arsenal'), (38, 'Wolves', 'Aston Villa'), (38, 'Burnley', 'Liverpool'), (38, 'West Ham', 'Brentford'), (38, 'Nottm Forest', 'Newcastle'), (38, 'Leeds', 'Man Utd'), (38, 'Bournemouth', 'Chelsea'), (38, 'Tottenham', 'Fulham'), (38, 'Crystal Palace', 'Sunderland'), (38, 'Everton', 'Brighton')
     """
 
-    # Xử lý chuỗi để insert
     try:
-        # Tách chuỗi thành các tuple để insert an toàn
         import ast
 
         values = schedule_data.strip().replace("\n", "").replace("    ", "")
-        # Cách đơn giản: Thực thi câu lệnh Insert trực tiếp
         cursor.execute(f"INSERT INTO Schedule (Game, Home, Away) VALUES {values}")
 
         conn.commit()
-        print("✅ Đã khởi tạo lại DB và nạp 380 trận đấu thành công!")
+        print("Đã nạp dữ liệu.")
     except Exception as e:
-        print(f"❌ Lỗi: {e}")
+        print(f"Lỗi: {e}")
     finally:
         conn.close()
 
