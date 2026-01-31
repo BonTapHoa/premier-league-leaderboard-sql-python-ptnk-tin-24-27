@@ -108,12 +108,22 @@ def init_database():
     (37, 'Aston Villa', 'Arsenal'), (37, 'Man City', 'Liverpool'), (37, 'Wolves', 'Brentford'), (37, 'Burnley', 'Newcastle'), (37, 'West Ham', 'Man Utd'), (37, 'Nottm Forest', 'Chelsea'), (37, 'Leeds', 'Fulham'), (37, 'Bournemouth', 'Sunderland'), (37, 'Tottenham', 'Brighton'), (37, 'Crystal Palace', 'Everton'),
     (38, 'Man City', 'Arsenal'), (38, 'Wolves', 'Aston Villa'), (38, 'Burnley', 'Liverpool'), (38, 'West Ham', 'Brentford'), (38, 'Nottm Forest', 'Newcastle'), (38, 'Leeds', 'Man Utd'), (38, 'Bournemouth', 'Chelsea'), (38, 'Tottenham', 'Fulham'), (38, 'Crystal Palace', 'Sunderland'), (38, 'Everton', 'Brighton')
     """
-
     try:
         import ast
 
         values = schedule_data.strip().replace("\n", "").replace("    ", "")
         cursor.execute(f"INSERT INTO Schedule (Game, Home, Away) VALUES {values}")
+
+        cursor.execute(
+            """
+UPDATE Schedule
+SET Homescore = ABS(RANDOM()) % 6,
+    Awayscore = ABS(RANDOM()) % 6
+WHERE Game <= 20
+  AND Homescore IS NULL
+  AND Awayscore IS NULL;
+"""
+        )
 
         conn.commit()
         print("Đã nạp dữ liệu.")
