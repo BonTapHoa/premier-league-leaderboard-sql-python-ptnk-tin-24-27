@@ -3,7 +3,6 @@ import pandas as pd
 import sqlite3
 import os
 
-# --- CẤU HÌNH TRANG ---
 st.set_page_config(
     page_title="Premier League Manager",
     page_icon="⚽",
@@ -117,7 +116,7 @@ def style_history_dataframe(df, target_team):
         processed_rows.append(
             {
                 "Vòng": game,
-                "Đối thủ": opponent,
+                "Đối thủ": f"/?team={opponent}",
                 "Sân": venue,
                 "Tỉ số": score_display,
                 "Kết quả": result_text,
@@ -175,16 +174,13 @@ def show_team_page(team_name):
 
     def highlight_rows(row):
         result = row["Kết quả"]
-
         color = "transparent"
-
         if "WIN" in result:
             color = "rgba(144, 238, 144, 0.3)"
         elif "DRAW" in result:
             color = "rgba(211, 211, 211, 0.3)"
         elif "LOSS" in result:
             color = "rgba(255, 182, 193, 0.3)"
-
         return [f"background-color: {color}"] * len(row)
 
     styler = display_df.style.apply(highlight_rows, axis=1)
@@ -194,6 +190,11 @@ def show_team_page(team_name):
         column_config={
             "Vòng": st.column_config.NumberColumn("Vòng", width="small"),
             "Kết quả": st.column_config.TextColumn("Phong độ", width="medium"),
+            "Đối thủ": st.column_config.LinkColumn(
+                "Đối thủ",
+                display_text="team=(.*)",
+                width="medium",
+            ),
         },
         use_container_width=True,
         hide_index=True,
